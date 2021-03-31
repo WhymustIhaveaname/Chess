@@ -1,0 +1,85 @@
+8.21
+15:48
+    完成 minmax, 决定从开局算 deep=2 看一下
+        15:57:19<breed:408,INFO> finish 9322,8902 cases in 2664.47ms at deep=2
+        15:57:19<test_minmax:280,INFO> finish in 2674.70 at deepth=2
+15:54
+    优化 minmax: 只计算最底层score
+        16:14:37<breed:409,INFO> finish 9322,8902 cases in 2614.10ms at deep=2
+        16:14:37<test_minmax:280,INFO> finish in 2622.98 at deepth=2
+    并没有变快
+16:35
+    用cProfile计时minmax，发现5125ms中的1708ms花在deepcopy上
+        ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    5.125    5.125 Chess.py:247(test_minmax)
+    421/1    0.025    0.000    5.105    5.105 Chess.py:360(breed)
+     9322    0.029    0.000    5.049    0.001 Chess.py:729(move)
+     9322    0.022    0.000    3.892    0.000 Chess.py:38(appendDecs)
+     9323    0.012    0.000    3.660    0.000 Chess.py:32(__init__)
+2162936/37292    1.708    0.000    3.590    0.000 copy.py:137(deepcopy)
+    考虑把棋盘换成字符串，用timeit计时100000次发现:
+        copy numpy array 163ms
+        copy字符串        103ms
+        deepcopy矩阵     5033ms
+    在考虑取元素的花销，用timeit计时100000次发现:
+        numpy array 147ms
+        字符串       115ms
+        tuple(list) 115ms
+    看来需要大动程序，保存原先版本为v1
+17:36
+    去掉了对ControlMap不必要的deepcopy
+    发现字符串竟然不能赋值，不得不测试列表的性能。计时100000次：
+        copy 145ms
+        取值  107ms
+    把棋盘的数据结构改为list之后：
+        17:55:21<breed:380,INFO> finish 9322,8902 cases in 1975.33ms at deep=2
+        17:55:21<test_minmax:251,INFO> finish in 2075.73 at deepth=2
+    使用cProfile测试
+        ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    3.863    3.863 Chess.py:220(test_minmax)
+    421/1    0.025    0.000    3.763    3.763 Chess.py:331(breed)
+     9322    0.024    0.000    3.711    0.000 Chess.py:700(move)
+     9322    0.021    0.000    3.672    0.000 Chess.py:47(appendDecs)
+     9323    0.008    0.000    3.629    0.000 Chess.py:34(__init__)
+     9323    0.681    0.000    3.621    0.000 Chess.py:106(genControlMap)
+     3208    0.007    0.000    2.370    0.001 Chess.py:474(moveAsLowerP)
+1361158/18646    1.117    0.000    2.369    0.000 copy.py:137(deepcopy)
+    看来ControlMap也要改成list，保存原先版本为v2
+18:12
+    把ControlMap也换成list之后
+        18:11:14<breed:370,INFO> finish 9322,8902 cases in 1015.22ms at deep=2
+        18:11:14<test_minmax:241,INFO> finish in 1102.85 at deepth=2
+    用cProfile测试，deepcopy的时间已经完全不见了
+        ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    1.436    1.436 Chess.py:210(test_minmax)
+    421/1    0.023    0.000    1.345    1.345 Chess.py:321(breed)
+     9322    0.019    0.000    1.296    0.000 Chess.py:690(move)
+     9322    0.017    0.000    1.263    0.000 Chess.py:39(appendDecs)
+     9323    0.007    0.000    1.228    0.000 Chess.py:26(__init__)
+     9323    0.671    0.000    1.221    0.000 Chess.py:98(genControlMap)
+18:20
+    优化genControlMap中的计数函数
+    ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    1.294    1.294 Chess.py:206(test_minmax)
+    421/1    0.023    0.000    1.198    1.198 Chess.py:317(breed)
+     9322    0.020    0.000    1.149    0.000 Chess.py:686(move)
+     9322    0.017    0.000    1.116    0.000 Chess.py:39(appendDecs)
+     9323    0.007    0.000    1.082    0.000 Chess.py:26(__init__)
+     9323    0.419    0.000    1.075    0.000 Chess.py:93(genControlMap)
+18:28
+    优化genControlMap中的ControlAs*函数
+    ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.000    0.000    1.272    1.272 Chess.py:197(test_minmax)
+    421/1    0.023    0.000    1.180    1.180 Chess.py:308(breed)
+     9322    0.019    0.000    1.131    0.000 Chess.py:689(move)
+     9322    0.017    0.000    1.097    0.000 Chess.py:38(appendDecs)
+     9323    0.007    0.000    1.063    0.000 Chess.py:26(__init__)
+     9323    0.420    0.000    1.056    0.000 Chess.py:92(genControlMap)
+     3208    0.006    0.000    0.733    0.000 Chess.py:451(moveAsLowerP)
+    没有改善
+    并且发现genControlMap中计算ControlNum几乎不花时间了
+18:35
+    决定开始学习alpha-beta剪枝，保存原先版本为v3
+21:38
+    使用alpha-beta剪枝算法
+        21:38:26<test_puning:180,INFO> finish 400 cases in 35.36ms at deepth=2
